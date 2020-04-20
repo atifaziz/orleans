@@ -9,37 +9,9 @@ using Newtonsoft.Json;
 
 namespace AdventureSetup
 {
-    public class Adventure
+    public static class Adventure
     {
-        private IClusterClient client;
-
-        public Adventure(IClusterClient client)
-        {
-            this.client = client;
-        }
-
-        private async Task<IRoomGrain> MakeRoom(RoomInfo data)
-        {
-            var roomGrain = client.GetGrain<IRoomGrain>(data.Id);
-            await roomGrain.SetInfo(data);
-            return roomGrain;
-        }
-
-        private async Task MakeThing(Thing thing)
-        {
-            var roomGrain = client.GetGrain<IRoomGrain>(thing.FoundIn);
-            await roomGrain.Drop(thing);
-        }
-
-        private async Task MakeMonster(MonsterInfo data, IRoomGrain room)
-        {
-            var monsterGrain = client.GetGrain<IMonsterGrain>(data.Id);
-            await monsterGrain.SetInfo(data);
-            await monsterGrain.SetRoomGrain(room);
-        }
-
-
-        public async Task Configure(string filename)
+        public static async Task Configure(IClusterClient client, string filename)
         {
             var rand = new Random();
 
@@ -49,19 +21,33 @@ namespace AdventureSetup
                 var data = deserializer.Deserialize<MapInfo>(jsonStream);
 
                 var rooms = new List<IRoomGrain>();
+
+                // configure rooms
+
                 foreach (var room in data.Rooms)
                 {
-                    var roomGr = await MakeRoom(room);
+                    var roomGrain = client.GetGrain<IRoomGrain>(room.Id);
+                    await roomGrain.SetInfo(room);
                     if (room.Id >= 0)
-                        rooms.Add(roomGr);
+                        rooms.Add(roomGrain);
                 }
+
+                // configure things
+
                 foreach (var thing in data.Things)
                 {
-                    await MakeThing(thing);
+                    var roomGrain = client.GetGrain<IRoomGrain>(thing.FoundIn);
+                    await roomGrain.Drop(thing);
                 }
+
+                // configure monsters
+
                 foreach (var monster in data.Monsters)
                 {
-                    await MakeMonster(monster, rooms[rand.Next(0, rooms.Count)]);
+                    var room = rooms[rand.Next(0, rooms.Count)];
+                    var monsterGrain = client.GetGrain<IMonsterGrain>(monster.Id);
+                    await monsterGrain.SetInfo(monster);
+                    await monsterGrain.SetRoomGrain(room);
                 }
             }
         }

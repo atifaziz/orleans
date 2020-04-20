@@ -77,8 +77,7 @@ namespace AdventureSetup
 
             Console.WriteLine("Map file name is '{0}'.", mapFileName);
             Console.WriteLine("Setting up Adventure, please wait ...");
-            Adventure adventure = new Adventure(client);
-            adventure.Configure(mapFileName).Wait();
+            await Adventure.Configure(client, mapFileName);
             Console.WriteLine("Adventure setup completed.");
         }
 
